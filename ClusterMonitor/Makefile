@@ -1,11 +1,17 @@
 CC=gcc
-HOME=/home/chenxueyou
+HOME=/home/chenxuqiang/Tools/zookeeper-release-3.6.3/zookeeper-client/zookeeper-client-c/target/c
 CFLAGS=-g 
-ZOOKEEPER_INC=-I${HOME}/zookeeper/include/zookeeper
-ZOOKEEPER_LIB= -L${HOME}/zookeeper/lib -lzookeeper_mt
+ZOOKEEPER_INC=-I${HOME}/include/zookeeper
+ZOOKEEPER_LIB= -L${HOME}/lib -lzookeeper_mt
 
-APP=monitor
-all:
-	${CC} monitor.c -DTHREAD ${CFLAGS} ${ZOOKEEPER_INC} ${ZOOKEEPER_LIB} -o ${APP} 
+all: monitor ClusterMonitor
+
+monitor: monitor.c
+	${CC} monitor.c -DTHREAD ${CFLAGS} ${ZOOKEEPER_INC} ${ZOOKEEPER_LIB} -o monitor 
+
+ClusterMonitor: ClusterMonitor.c
+	${CC} ClusterMonitor.c -DTHREAD ${CFLAGS} ${ZOOKEEPER_INC} ${ZOOKEEPER_LIB} -o ClusterMonitor
+
 clean:
-	rm -f ${APP}
+	rm -f monitor
+	rm -f ClusterMonitor
