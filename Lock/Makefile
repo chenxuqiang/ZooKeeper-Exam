@@ -1,8 +1,8 @@
 CC=gcc
-HOME=/home/chenxueyou
 CFLAGS=-g 
-ZOOKEEPER_INC=-I${HOME}/zookeeper/include/zookeeper
-ZOOKEEPER_LIB= -L${HOME}/zookeeper/lib -lzookeeper_mt
+HOME=/home/chenxuqiang/Tools/zookeeper-release-3.6.3/zookeeper-client/zookeeper-client-c/target/c
+ZOOKEEPER_INC=-I${HOME}/include/zookeeper
+ZOOKEEPER_LIB= -L${HOME}/lib -lzookeeper_mt
 
 APP=mylock
 all:

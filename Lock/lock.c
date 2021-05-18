@@ -1,17 +1,16 @@
-#include<stdio.h>  
-#include<string.h>  
-#include<unistd.h>
-#include"zookeeper.h"  
-#include"zookeeper_log.h"  
+#include <stdio.h>  
+#include <string.h>  
+#include <unistd.h>
+#include "zookeeper.h"  
+#include "zookeeper_log.h"  
 
-char g_host[512]= "172.17.0.36:2181";  
+char g_host[512]= "127.0.0.1:2181";  
 char g_path[512]= "/Lock";
 
-typedef struct Lock
-{
+typedef struct Lock {
     char lockpath[1024];
     char selfpath[1024];
-}Lock;
+} Lock;
 
 void print_usage();
 void get_option(int argc,const char* argv[]);
@@ -24,102 +23,104 @@ void print_usage()
     printf("        -p lock path\n");
     printf("        -s zookeeper server ip:port\n");
     printf("For example:\n");
-    printf("    mylock -s172.17.0.36:2181 -p /Lock\n");
+    printf("    mylock -s 172.17.0.36:2181 -p /Lock\n");
 }
  
-void get_option(int argc,const char* argv[])
+void get_option(int argc, const char* argv[])
 {
-	extern char    *optarg;
-	int            optch;
-	int            dem = 1;
-	const char    optstring[] = "hp:s:";
+    extern char *optarg;
+    int optch;
+    int dem = 1;
+    const char optstring[] = "hp:s:";
     
-    
-	while((optch = getopt(argc , (char * const *)argv , optstring)) != -1 )
-	{
-		switch( optch )
-		{
-		case 'h':
-			print_usage();
-			exit(-1);
-		case '?':
-			print_usage();
-			printf("unknown parameter: %c\n", optopt);
-			exit(-1);
-		case ':':
-			print_usage();
-			printf("need parameter: %c\n", optopt);
-			exit(-1);
-        case 's':
-            strncpy(g_host,optarg,sizeof(g_host));
-            break;
-        case 'p':
-            strncpy(g_path,optarg,sizeof(g_path));
-            break;
-		default:
-			break;
-		}
-	}
+    while((optch = getopt(argc , (char * const *)argv , optstring)) != -1 ) {
+        switch (optch) {
+            case 'h':
+                print_usage();
+                exit(-1);
+            case '?':
+                print_usage();
+                printf("unknown parameter: %c\n", optopt);
+                exit(-1);
+            case ':':
+                print_usage();
+                printf("need parameter: %c\n", optopt);
+                exit(-1);
+            case 's':
+                strncpy(g_host,optarg,sizeof(g_host));
+                break;
+            case 'p':
+                strncpy(g_path,optarg,sizeof(g_path));
+                break;
+            default:
+                break;
+        }
+    }
 } 
 
-Lock *create_lock(zhandle_t *zkhandle,const char *path)
+Lock *create_lock(zhandle_t *zkhandle, const char *path)
 {
     char path_buffer[512]={0};
     int bufferlen = sizeof(path_buffer);
-    Lock * lock = NULL;
+    Lock *lock = NULL;
 
-    int ret = zoo_exists(zkhandle,path,0,NULL); 
+    int ret = zoo_exists(zkhandle, path, 0, NULL); 
     if(ret != ZOK){
-        ret = zoo_create(zkhandle,path,"1.0",strlen("1.0"),  
-                          &ZOO_OPEN_ACL_UNSAFE,0,  
-                          path_buffer,bufferlen);  
-        if(ret != ZOK){
-            fprintf(stderr,"failed to create the path %s!\n",path);
-        }else{
-            printf("create path %s successfully!\n",path);
+        ret = zoo_create(zkhandle, path, "1.0", strlen("1.0"),  
+                         &ZOO_OPEN_ACL_UNSAFE, 0,  
+                         path_buffer, bufferlen);  
+        if (ret != ZOK) {
+            fprintf(stderr,"failed to create the path %s!\n", path);
+        } else {
+            fprintf(stdout, "create path %s successfully!\n", path);
         }
     }
-    if(ret == ZOK){
+
+    if (ret == ZOK) {
         char child_path[512];
-        sprintf(child_path,"%s/lock-",path);
-        ret = zoo_create(zkhandle,child_path,"1.0",strlen("1.0"),  
-                          &ZOO_OPEN_ACL_UNSAFE,ZOO_SEQUENCE|ZOO_EPHEMERAL,  
-                          path_buffer,bufferlen);  
-        if(ret != ZOK){
-            fprintf(stderr,"failed to create the path %s!\n",path);
-        }else{
-            printf("create path %s successfully!\n",path);
+        sprintf(child_path, "%s/lock-", path);
+        ret = zoo_create(zkhandle, child_path, "1.0", strlen("1.0"),  
+                         &ZOO_OPEN_ACL_UNSAFE, ZOO_SEQUENCE | ZOO_EPHEMERAL,  
+                         path_buffer, bufferlen);  
+        if (ret != ZOK) {
+            fprintf(stderr, "failed to create the path %s!\n", child_path);
+        } else {
+            fprintf(stdout, "create path %s successfully!\n", child_path);
         }
     }
-    if(ret == ZOK){
+
+    if (ret == ZOK) {
         lock = (Lock *)malloc(sizeof(Lock));
         
-        strcpy(lock->lockpath,path);
-        strcpy(lock->selfpath,path_buffer);
+        strcpy(lock->lockpath, path);
+        strcpy(lock->selfpath, path_buffer);
     }
-
     return lock;
 }
 
-int try_lock(zhandle_t *zkhandle,Lock *lock)
+int try_lock(zhandle_t *zkhandle, Lock *lock)
 {
     struct String_vector children;
     int i = 0;
-    int ret = zoo_get_children(zkhandle,lock->lockpath,0,&children);
+    int ret = zoo_get_children(zkhandle, lock->lockpath, 0, &children);
 
-    if(ret != ZOK){
-        fprintf(stderr,"error when get children of path %s\n",lock->lockpath);
+    if (ret != ZOK) {
+        fprintf(stderr, "error when get children of path %s\n", lock->lockpath);
         ret = -1;
-    }else{
-        char *myseq = rindex(lock->selfpath,'/');
-        if (myseq != NULL) myseq += 1;
+    } else {
+        char *myseq = rindex(lock->selfpath, '/');
+        if (myseq != NULL) {
+            myseq += 1;
+            fprintf(stdout, "[deubg]: myseq = %s\n", myseq);
+        }
         
         ret = 1;
-        for(i = 0; i < children.count; ++i){
-            if(strcmp(children.data[i],myseq) < 0){
-                ret = 0;
+        for (i = 0; i < children.count; ++i) {
+            fprintf(stdout, "[debug]: children.data[%d] = %s\n", i, children.data[i]);
+            if (strcmp(children.data[i], myseq) < 0) {
+                ret = 0;  //myseq必须是所有zonde里面最小的，才能获取到锁
                 break;
-            }            
+            }
         }
 
         for(i = 0; i < children.count; ++i){
@@ -131,27 +132,27 @@ int try_lock(zhandle_t *zkhandle,Lock *lock)
     return ret;
 }
 
-Lock *lock(zhandle_t *zkhandle,const char *path)
+Lock *lock(zhandle_t *zkhandle, const char *path)
 {
     int ret ;
-    Lock *lock = create_lock(zkhandle,path);
-    if(lock != NULL){
-        while((ret = try_lock(zkhandle,lock)) == 0){
+    Lock *lock = create_lock(zkhandle, path);
+    if (lock != NULL) {
+        while ((ret = try_lock(zkhandle, lock)) == 0) {
             sleep(1);
         }
-    }else{
-        fprintf(stderr,"error when create lock %s.\n",path);
+    } else {
+        fprintf(stderr,"error when create lock %s.\n", path);
     }
 
     return lock;
 }
 
-int unlock(zhandle_t *zkhandle,Lock * *lock)
+int unlock(zhandle_t *zkhandle, Lock **lock)
 {
-    if(*lock){
-        int ret = zoo_delete(zkhandle,(*lock)->selfpath,-1);
-        if(ret != ZOK){
-            fprintf(stderr,"error when release lock %s.\n",(*lock)->selfpath);
+    if (*lock) {
+        int ret = zoo_delete(zkhandle, (*lock)->selfpath, -1);
+        if (ret != ZOK){
+            fprintf(stderr, "error when release lock %s.\n", (*lock)->selfpath);
         }
         free(*lock);
         *lock = NULL;
@@ -174,27 +175,25 @@ int main(int argc, const char *argv[])
 
     zhandle_t* zkhandle = zookeeper_init(g_host,NULL, timeout, 0, (char *)"lock Test", 0);  
 
-    if (zkhandle ==NULL)  
-    {  
+    if (zkhandle ==NULL)  {  
         fprintf(stderr, "Error when connecting to zookeeper servers...\n");  
         exit(EXIT_FAILURE);  
     }  
     
-    int ret = zoo_exists(zkhandle,g_path,0,NULL); 
-    if(ret != ZOK){
-        ret = zoo_create(zkhandle,g_path,"1.0",strlen("1.0"),  
-                          &ZOO_OPEN_ACL_UNSAFE,0,  
-                          path_buffer,bufferlen);  
-        if(ret != ZOK){
+    int ret = zoo_exists(zkhandle, g_path, 0, NULL); 
+    if (ret != ZOK) {
+        ret = zoo_create(zkhandle, g_path, "1.0", strlen("1.0"),  
+                          &ZOO_OPEN_ACL_UNSAFE, 0,  
+                          path_buffer, bufferlen);  
+        if (ret != ZOK) {
             fprintf(stderr,"failed to create the path %s!\n",g_path);
-        }else{
+        } else {
             printf("create path %s successfully!\n",g_path);
         }
     }
   
-    if(ret == ZOK ){
-       Lock *mylock = lock(zkhandle,g_path);
-       
+    if (ret == ZOK) {
+       Lock *mylock = lock(zkhandle, g_path);
         if(mylock){
             printf("get lock of %s.\n",g_path);
             printf("self path is %s.\n",mylock->selfpath);
@@ -202,11 +201,10 @@ int main(int argc, const char *argv[])
             printf("do something....\n");
             getchar();
 
-            unlock(zkhandle,&mylock);
+            unlock(zkhandle, &mylock);
         }    
     }
     
     zookeeper_close(zkhandle); 
-
     return 0;
 } 
